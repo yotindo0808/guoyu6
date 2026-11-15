@@ -240,6 +240,21 @@ TABS_OLD_T = '["group", "組別管理"], ["b5", "紙本學習單"]]'
 TABS_NEW_T = '["group", "組別管理"], ["b5", "紙本學習單"], ["msg", "站內信"]]'
 MAP_OLD = 'accts: tabAccts, legacy: tabLegacy })[TD.tab](body);'
 MAP_NEW = 'accts: tabAccts, legacy: tabLegacy, msg: tabMsg })[TD.tab](body);'
+REG_PATCH = [
+    ("<tr><td>投影上課、所有課程內容與教學工具（畫筆、遮住選項、抽籤、計時）</td><td>✓</td><td>✓</td></tr>",
+     "<tr><td>投影上課、教學工具（畫筆、遮住選項、抽籤、計時）、其他課程內容</td><td>✓</td><td>✓</td></tr>\n<tr><td>課文全文、彩色生字圖</td><td>需課文密碼</td><td>需課文密碼</td></tr>"),
+    ("<tr><td>下載生字講義（本頁下方）</td><td>✓</td><td>✓</td></tr>",
+     "<tr><td>下載生字講義（本頁下方）</td><td>需課文密碼</td><td>需課文密碼</td></tr>"),
+    ("註冊免費，只要自訂帳號和密碼。學生的作答會加密，只有你看得到，詳見下方「隱私與安全說明」。",
+     "註冊免費，只用來收學生作答紀錄，不能代替課文密碼。課文密碼只提供給網站管理者認識的老師，提示：管理者 IG 頭像的英文。學生的作答會加密，只有你看得到。"),
+    ("只用來上課的話，不註冊也能使用全部教學功能。",
+     "只用來上課的話不用註冊；課文全文和生字講義需要課文密碼，有沒有註冊都一樣。"),
+    ("box.append(lc, rc, diff, b5, privacyCard(false), guideCard(false));",
+     "const more = card(\"使用說明與隱私\", \"\", \"完整的使用說明、隱私說明和著作權說明，都在「使用說明」頁。\"); const gm = el(\"button\", { type: \"button\", class: \"btn\" }, \"看使用說明\"); gm.onclick = () => { location.hash = \"guide\"; }; more.append(tools(gm));\n  box.append(lc, rc, diff, b5, more);"),
+]
+for a, b in REG_PATCH:
+    assert s.count(a) == 1, a[:40]
+    s = s.replace(a, b)
 for a, b in [(TABS_OLD_O, TABS_NEW_O), (TABS_OLD_T, TABS_NEW_T), (MAP_OLD, MAP_NEW)]:
     assert s.count(a) == 1, a
     s = s.replace(a, b)
