@@ -1,0 +1,223 @@
+"""產生「課文加密」測試版：不改動原網站，只輸出另一個 HTML。
+用法：python3 build_locktest.py 原始index.html 芫荽體.ttf 輸出.html 密碼
+"""
+import base64, io, json, os, re, sys, html
+from PIL import Image, ImageDraw, ImageFont
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+
+src, font_path, out, pw = sys.argv[1:5]
+TEST = (sys.argv[5] if len(sys.argv) > 5 else "test") == "test"
+ITER = 150000
+NUMS = "一二三四五六七八九十"
+
+s = open(src, encoding="utf-8").read()
+key0 = "const LESSONS = "
+i = s.index(key0) + len(key0)
+obj, end = json.JSONDecoder().raw_decode(s, i)
+
+font = ImageFont.truetype(font_path, 120)
+
+def glyph_png(ch, size):
+    w, h = size
+    im = Image.new("RGB", (w, h), "white")
+    d = ImageDraw.Draw(im)
+    pink = (246, 196, 206)
+    for x in range(0, w, 8):  # 田字格虛線
+        d.line([(x, h // 2), (x + 4, h // 2)], fill=pink, width=1)
+    for y in range(0, h, 8):
+        d.line([(w // 2, y), (w // 2, y + 4)], fill=pink, width=1)
+    bb = d.textbbox((0, 0), ch, font=font)
+    tw, th = bb[2] - bb[0], bb[3] - bb[1]
+    d.text(((w - tw) / 2 - bb[0], (h - th) / 2 - bb[1]), ch, font=font, fill=(60, 60, 60))
+    buf = io.BytesIO(); im.save(buf, "PNG", optimize=True)
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+sealed_plain = {}
+for lid, L in obj.items():
+    real_text = L.get("text") or []
+    real_img = [c.get("img", "") for c in L.get("cards", [])]
+    sealed_plain[lid] = {"text": real_text, "img": real_img}
+    ph = []
+    for n, p in enumerate(real_text):
+        words, seen = [], set()
+        for w in re.findall(r'data-w="([^"]+)"', p):
+            if w not in seen:
+                seen.add(w); words.append(w)
+        hidden = "".join(f'<button type="button" class="w" data-w="{html.escape(w)}">{html.escape(w)}</button>' for w in words)
+        no = NUMS[n] if n < len(NUMS) else str(n + 1)
+        ph.append(
+            f'<span class="lockp">🔒 第{no}段課文請翻開課本閱讀。'
+            f'<button type="button" class="btn unlockbtn">🔑 老師解鎖</button></span>'
+            f'<span class="lockw" hidden>{hidden}</span>')
+    L["text"] = ph
+    for c in L.get("cards", []):
+        b = base64.b64decode(c["img"].split(",", 1)[1])
+        c["img"] = glyph_png(c["c"], Image.open(io.BytesIO(b)).size)
+
+# 加密（PBKDF2-SHA256 → AES-GCM），網頁裡只留下密文
+salt, iv = os.urandom(16), os.urandom(12)
+k = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=ITER).derive(pw.encode())
+ct = AESGCM(k).encrypt(iv, json.dumps(sealed_plain, ensure_ascii=False).encode(), None)
+b64 = lambda x: base64.b64encode(x).decode()
+sealed = {"s": b64(salt), "i": b64(iv), "n": ITER, "c": b64(ct)}
+
+s = s[:i] + json.dumps(obj, ensure_ascii=False) + s[end:]
+
+lock_css = """
+<style id="lockcss">
+.lockp{display:block;padding:14px 18px;border:2px dashed #c9b28a;border-radius:12px;background:#fffaf0;color:#6b5a3a;line-height:1.8}
+.lockp .unlockbtn{margin-left:.6em;font-size:.85em}
+html:not(.proj) .unlockbtn{display:none}
+#lockbtn{font-family:var(--ui);font-size:13px;border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;border-radius:8px;padding:4px 10px;cursor:pointer;flex:none;white-space:nowrap}
+#lockbtn.on{background:#e8f5ee;color:#1d4a3a}
+html:not(.proj) #lockbtn,html.tmode #lockbtn{display:none}
+#lockdlg h3{color:#1d4a3a}
+#testtag{font-family:var(--ui);background:#b3432f;color:#fff;font-size:12px;padding:3px 9px;border-radius:999px;flex:none;white-space:nowrap}
+#lockdlg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10000}
+#lockdlg.show{display:flex}
+#lockdlg .bx{font-family:var(--ui);color:#333;background:#fff;border-radius:14px;padding:22px 24px;width:min(420px,90vw);box-shadow:0 8px 30px rgba(0,0,0,.25)}
+#lockdlg h3{margin:0 0 .4em}
+#lockdlg p{margin:.3em 0 .8em;font-size:.92em;color:#555;line-height:1.6}
+#lockdlg input{width:100%;box-sizing:border-box;font-size:1.1em;padding:8px 10px;border:2px solid #bbb;border-radius:8px}
+#lockdlg .err{color:#b3261e;min-height:1.4em;font-size:.9em;margin-top:.4em}
+#lockdlg .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:10px}
+#lockdlg .bx{width:min(520px,92vw)!important;max-height:92vh;overflow:auto}
+@media (max-height:620px){#lockdlg .lkbub{font-size:.85em;line-height:1.6;padding:9px 12px}#lockdlg .bx{padding:14px 18px}}
+#lockdlg .lkbub{position:relative;background:#fff8e1;border:2.5px solid #f0a33a;border-radius:14px;padding:12px 15px;margin:.2em 0 1em;font-size:.95em;line-height:1.75;color:#4a3a1a}
+#lockdlg .lkbub:after{content:"";position:absolute;left:28px;bottom:-11px;width:18px;height:18px;background:#fff8e1;border-right:2.5px solid #f0a33a;border-bottom:2.5px solid #f0a33a;transform:rotate(45deg)}
+#lockdlg .lkbub b{color:#a35a00}
+#lockdlg .lkhint{font-size:.88em;color:#666}
+.crline{font-family:var(--ui);font-size:12.5px;line-height:1.7;opacity:.75;text-align:center;margin:1.2em auto 0;max-width:46em}
+.crcard ol{padding-left:1.4em;line-height:1.85;margin:.4em 0 0}
+.crcard li{margin:.25em 0}
+.crcard{margin-top:16px}
+.crcard a{color:var(--accent);word-break:break-all}
+.hmsg{text-align:center;margin:1em 0 0}
+.linkbtn{font:inherit;color:inherit;background:none;border:none;border-bottom:2px solid currentColor;padding:0 .1em;margin:0 .15em;cursor:pointer;font-weight:bold}
+#msgdlg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10001}
+#msgdlg.show{display:flex}
+#msgdlg .bx{font-family:var(--ui);color:#333;background:#fff;border-radius:14px;padding:20px 24px;width:min(540px,92vw);max-height:92vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+#msgdlg h3{margin:0 0 .4em;color:#1d4a3a}
+#msgdlg .mh{font-size:.93em;line-height:1.7;color:#4a3a1a;background:#fff8e1;border:2px solid #f0a33a;border-radius:12px;padding:9px 13px;margin:.2em 0 .8em}
+#msgdlg .mf{display:block;font-size:.92em;margin:.35em 0;color:#444}
+#msgdlg input,#msgdlg textarea{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:1.05em;padding:7px 10px;border:2px solid #bbb;border-radius:8px;margin-top:4px}
+#msgdlg .mcnt{display:block;text-align:right;font-size:.8em;color:#888}
+#msgdlg .mhp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+#msgdlg .mpriv{font-size:.82em;color:#777;margin:.3em 0}
+#msgdlg .merr{color:#b3261e;min-height:1.3em;font-size:.9em}
+#msgdlg .acts{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.mlist{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.mitem{border:1.5px solid rgba(127,127,127,.4);border-radius:12px;padding:10px 14px}
+.mitem.unread{border-color:#f0a33a;box-shadow:inset 4px 0 0 #f0a33a}
+.mhead{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:.92em}
+.mtime{opacity:.7}
+.mst{margin-left:auto;font-size:.82em;padding:1px 9px;border-radius:999px;border:1px solid currentColor;opacity:.85}
+.mst.u{color:#f0a33a}.mst.r{color:#5bbf8f}
+.mtext{white-space:pre-wrap;line-height:1.75;margin:.4em 0}
+.mreply{white-space:pre-wrap;line-height:1.7;border-left:3px solid #5bbf8f;padding:4px 10px;margin:.4em 0;opacity:.9}
+.mrl{display:block;font-size:.82em;opacity:.75}
+.mrbox textarea{width:100%;box-sizing:border-box;font:inherit;padding:7px 10px;border-radius:8px}
+</style>
+"""
+
+lock_js = """
+<script id="lockjs">
+const SEALED = __SEALED__;
+const PLACEHOLDER = {}; Object.keys(LESSONS).forEach(id => { const L0 = LESSONS[id]; PLACEHOLDER[id] = { text: (L0.text || []).slice(), img: (L0.cards || []).map(c => c.img) }; });
+let UNLOCKED = false;
+const ub = s => Uint8Array.from(atob(s), ch => ch.charCodeAt(0));
+async function deriveKey(pw) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", salt: ub(SEALED.s), iterations: SEALED.n, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, true, ["decrypt"]);
+}
+function applyData(data) {
+  Object.keys(data).forEach(id => { const L0 = LESSONS[id]; if (!L0) return; L0.text = data[id].text; (L0.cards || []).forEach((c, k) => { if (data[id].img[k]) c.img = data[id].img[k]; }); });
+}
+async function openWithKey(key) {
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ub(SEALED.i) }, key, ub(SEALED.c));
+  applyData(JSON.parse(new TextDecoder().decode(pt))); UNLOCKED = true; paintLockBtn();
+  if (page() === "lesson") render();
+}
+function relock() {
+  Object.keys(PLACEHOLDER).forEach(id => { const L0 = LESSONS[id]; L0.text = PLACEHOLDER[id].text.slice(); (L0.cards || []).forEach((c, k) => c.img = PLACEHOLDER[id].img[k]); });
+  UNLOCKED = false; try { sessionStorage.removeItem("kwkey"); } catch (e) {}
+  paintLockBtn(); if (page() === "lesson") render();
+}
+function paintLockBtn() { const b = document.getElementById("lockbtn"); if (b) { b.textContent = UNLOCKED ? "🔓 課文已解鎖" : "🔒 課文已上鎖"; b.classList.toggle("on", UNLOCKED); b.title = UNLOCKED ? "按一下重新上鎖" : "按一下輸入密碼解鎖"; } }
+function askPw() {
+  const d = document.getElementById("lockdlg"); d.classList.add("show");
+  const inp = d.querySelector("input"); inp.value = ""; d.querySelector(".err").textContent = ""; setTimeout(() => inp.focus(), 50);
+}
+async function tryPw() {
+  const d = document.getElementById("lockdlg"); const inp = d.querySelector("input"); const err = d.querySelector(".err"); const go = d.querySelector(".go");
+  if (!inp.value) { err.textContent = "請輸入密碼。"; return; }
+  go.disabled = true; err.textContent = "解鎖中……";
+  try {
+    const key = await deriveKey(inp.value); await openWithKey(key);
+    try { const raw = await crypto.subtle.exportKey("raw", key); sessionStorage.setItem("kwkey", btoa(String.fromCharCode(...new Uint8Array(raw)))); } catch (e) {}
+    d.classList.remove("show");
+  } catch (e) { err.textContent = "密碼不正確，請再試一次。"; }
+  go.disabled = false;
+}
+
+/*__MSGJS__*/
+{ const _rc = readChallenge; readChallenge = function (para, label) { return UNLOCKED ? _rc(para, label) : el("span", { class: "lockread" }); }; }
+/* 著作權說明（測試版） */
+const CR_LINE = "本站部分內容引用或改寫自康軒版《國語》六上、雄::gsyan 筆順練習及教育部辭典資料，著作權屬原權利人，僅供課堂教學使用。詳見「使用說明」。";
+function copyrightCard() {
+  const c = el("section", { class: "card crcard" });
+  c.innerHTML = '<h3>著作權說明</h3><ol>' +
+    '<li>課文引用自康軒文教事業《國小國語》第十一冊（六年級上學期），作者依各課標示；課文大意、段落大意、課文結構及部分題目、例句，依康軒備課資料整理或改寫。著作權屬康軒文教事業及原作者所有。</li>' +
+    '<li>彩色生字圖取自「雄::gsyan」網站（顏國雄）的 HTML5 FUN 筆順練習，著作權屬原作者所有。網址：<a href="https://gsyan888.blogspot.com/p/stroke.html" target="_blank" rel="noopener">gsyan888.blogspot.com/p/stroke.html</a></li>' +
+    '<li>詞語解釋、字音、部首參考教育部《國語辭典簡編本》《國語小字典》等辭典資料。</li>' +
+    '<li>情境圖、簡單說及部分例句由 LDG 製作。</li>' +
+    '<li>以上內容僅在學校課堂教學必要範圍內使用。課文全文與彩色生字圖已加密，只開放授課學校的老師解鎖。權利人如認為本站有不當使用，請透過<button type="button" class="linkbtn openmsg">✉️ 站內信</button>與網站管理者聯絡，將立即處理。</li></ol>';
+  return c;
+}
+{ const _th = tabHelp; tabHelp = function (body) { _th(body); body.append(copyrightCard()); const mc = card("聯絡網站管理者", "", "對網站有問題、建議，或有特殊需求，可以用站內信留言。留言只有網站管理者看得到。"); mc.append(tools(el("button", { type: "button", class: "btn solid openmsg" }, "✉️ 寫站內信"))); mc.classList.add("crcard"); body.append(mc); }; }
+{ const _rh = renderHome; renderHome = function () { _rh(); const w = document.querySelector("#main .homewrap"); if (w) { w.append(el("p", { class: "hmsg" }, '<button type="button" class="btn openmsg">✉️ 聯絡網站管理者</button>')); w.append(el("p", { class: "crline" }, CR_LINE)); } }; }
+if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
+
+(function initLock() {
+  document.head.insertAdjacentHTML("beforeend", "");
+  const b = document.createElement("button"); b.type = "button"; b.id = "lockbtn"; b.className = "mset";
+  b.onclick = () => UNLOCKED ? relock() : askPw();
+  const bar = document.querySelector("#bar .row"); bar.insertBefore(b, document.getElementById("mset"));
+  paintLockBtn();
+  if (__TEST__) document.querySelector("#bar .ver").insertAdjacentHTML("afterend", '<span id="testtag" title="測試版：課文加密，請勿給學生使用">測試版</span>');
+  document.body.insertAdjacentHTML("beforeend", "" +
+    '<div id="lockdlg" role="dialog" aria-modal="true" aria-labelledby="lockt"><div class="bx"><h3 id="lockt">🔑 課文解鎖</h3>' +
+    '<div class="lkbub"><b>為什麼需要密碼？</b><br>課文全文和彩色生字圖受著作權保護，只能在授課學校的課堂中使用，所以只開放給網站管理者與同校老師解鎖。<br><b>沒有密碼也能照常上課：</b>課文請學生翻開課本閱讀，生字會改用一般字體顯示，其他功能都不受影響。<br>如有特殊需求，請透過<button type="button" class="linkbtn openmsg">✉️ 站內信</button>與網站管理者聯絡。</div>' +
+    '<p class="lkhint">有密碼的老師請在下方輸入。密碼不會傳到網路上，只在這台電腦解開。</p>' +
+    '<input type="password" autocomplete="off" aria-label="密碼"><div class="err"></div>' +
+    '<div class="acts"><button type="button" class="btn cancel">取消</button><button type="button" class="btn solid go">解鎖</button></div></div></div>');
+  const d = document.getElementById("lockdlg");
+  d.querySelector(".cancel").onclick = () => d.classList.remove("show");
+  d.querySelector(".go").onclick = tryPw;
+  d.querySelector("input").addEventListener("keydown", e => { if (e.key === "Enter") tryPw(); if (e.key === "Escape") d.classList.remove("show"); });
+  document.addEventListener("click", e => { if (e.target.closest(".unlockbtn")) { e.preventDefault(); e.stopPropagation(); askPw(); } }, true);
+  let saved = null; try { saved = sessionStorage.getItem("kwkey"); } catch (e) {}
+  if (saved) crypto.subtle.importKey("raw", ub(saved), "AES-GCM", true, ["decrypt"]).then(openWithKey).catch(() => {});
+})();
+</script>
+""".replace("__SEALED__", json.dumps(sealed)).replace("__TEST__", "true" if TEST else "false").replace("/*__MSGJS__*/", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "msg_inject.js"), encoding="utf-8").read())
+
+
+TABS_OLD_O = '[["accts", "老師帳號"], ["legacy", "未加密的舊紀錄"], ["b5", "紙本學習單"]]'
+TABS_NEW_O = '[["accts", "老師帳號"], ["msg", (me.info && me.info.unread) ? `站內信（${me.info.unread}）` : "站內信"], ["legacy", "未加密的舊紀錄"], ["b5", "紙本學習單"]]'
+TABS_OLD_T = '["group", "組別管理"], ["b5", "紙本學習單"]]'
+TABS_NEW_T = '["group", "組別管理"], ["b5", "紙本學習單"], ["msg", "站內信"]]'
+MAP_OLD = 'accts: tabAccts, legacy: tabLegacy })[TD.tab](body);'
+MAP_NEW = 'accts: tabAccts, legacy: tabLegacy, msg: tabMsg })[TD.tab](body);'
+for a, b in [(TABS_OLD_O, TABS_NEW_O), (TABS_OLD_T, TABS_NEW_T), (MAP_OLD, MAP_NEW)]:
+    assert s.count(a) == 1, a
+    s = s.replace(a, b)
+
+s = s.replace("</head>", lock_css + "</head>", 1)
+idx = s.rindex("</body>")
+s = s[:idx] + lock_js + s[idx:]
+if TEST: s = s.replace("<title>", "<title>【測試版】", 1)
+open(out, "w", encoding="utf-8").write(s)
+print("ok", len(s), "cipher bytes", len(ct))
