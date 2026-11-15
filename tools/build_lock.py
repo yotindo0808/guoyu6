@@ -100,6 +100,7 @@ html:not(.proj) #lockbtn,html.tmode #lockbtn{display:none}
 .gmore summary{cursor:pointer;font-weight:bold}
 .crcard a{color:var(--accent);word-break:break-all}
 .hmsg{text-align:center;margin:1em 0 0}
+.shb{display:inline-block;margin:2px 4px 2px 0;padding:4px 12px;font-size:.92em;text-decoration:none}
 .linkbtn{font:inherit;color:inherit;background:none;border:none;border-bottom:2px solid currentColor;padding:0 .1em;margin:0 .15em;cursor:pointer;font-weight:bold}
 #msgdlg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:10001}
 #msgdlg.show{display:flex}
@@ -171,6 +172,33 @@ async function tryPw() {
 }
 
 /*__MSGJS__*/
+/* 紙本學習單：生字講義需課文密碼，其他學習單直接下載 */
+const SHEETS = __SHEETS__;
+tabB5 = function (body) {
+  const c = card("紙本學習單", "", "");
+  c.append(el("p", { class: "hint" }, "🔒 生字講義有彩色生字圖，需要課文密碼。其他學習單不需要密碼：PDF 可以直接列印，Word／PowerPoint 可以自己修改。"));
+  const sel = el("select", { class: "tsel" }); LIST.filter(([id]) => LESSONS[id]).forEach(([id, n]) => sel.append(el("option", { value: id }, n)));
+  sel.value = LESSONS[cur.lesson] ? cur.lesson : sel.value;
+  const wrap = el("div", { class: "tscroll" });
+  const link = (f, label, name) => f ? `<a class="btn shb" href="${f}" download="${name}">${label}</a>` : "";
+  const draw = () => {
+    const id = sel.value, no = plainText(LESSONS[id].no), S = SHEETS[id] || {};
+    const row = (n, paper, stu, tch, edit) => `<tr><td>${n}</td><td>${paper}</td><td>${stu}</td><td>${tch}</td><td>${edit}</td></tr>`;
+    const wip = '<span class="hint">製作中</span>';
+    const one = (k, n, paper) => { const x = S[k]; if (!x) return row(n, paper, wip, "—", "—");
+      return row(n, paper, link(x.pdf, "PDF", `${no}_${n}.pdf`),
+        x.tpdf ? link(x.tpdf, "PDF", `${no}_${n}_教師版.pdf`) : (x.tWip ? wip : "—"),
+        [link(x.doc, x.doc && x.doc.endsWith(".pptx") ? "PowerPoint" : "Word", `${no}_${n}${x.doc ? x.doc.slice(x.doc.lastIndexOf(".")) : ""}`),
+         link(x.tdoc, "教師版 Word", `${no}_${n}_教師版${x.tdoc ? x.tdoc.slice(x.tdoc.lastIndexOf(".")) : ""}`)].filter(Boolean).join(" ") || "—"); };
+    wrap.innerHTML = `<table class="ttable"><thead><tr><th>學習單</th><th>紙張</th><th>學生版</th><th>教師版</th><th>可編輯檔</th></tr></thead><tbody>
+      <tr><td>🔒 生字講義</td><td>B5</td><td><button type="button" class="btn solid shb" id="b5go">下載</button></td><td>—</td><td>—</td></tr>
+      ${one("words", "詞語選詞填寫", "A4")}${one("zx", "字音字形講義", "B5")}${one("jx", "句型練習單（直書）", "B5")}</tbody></table>`;
+    wrap.querySelector("#b5go").onclick = () => { L = LESSONS[sel.value]; openPrint(); };
+  };
+  sel.onchange = draw; draw();
+  c.append(tools(sel), wrap); body.append(c);
+};
+if (page() === "teacher") renderTeacher();
 { const _rc = readChallenge; readChallenge = function (para, label) { return UNLOCKED ? _rc(para, label) : el("span", { class: "lockread" }); }; }
 /* 著作權說明（測試版） */
 const CR_LINE = "本站部分內容引用或改寫自康軒版《國語》六上、雄::gsyan 筆順練習及教育部辭典資料，著作權屬原權利人，僅供課堂教學使用。詳見「使用說明」。";
@@ -196,7 +224,7 @@ function copyrightCard() {
   k.innerHTML = '<h3>課文密碼與註冊</h3><ul class="gl">' +
     '<li>課文全文、彩色生字圖和生字講義下載需要<b>課文密碼</b>，只提供給網站管理者認識的老師。密碼提示：管理者 IG 頭像的英文。</li>' +
     '<li>註冊帳號只用來收學生作答紀錄，<b>不能代替課文密碼</b>。</li>' +
-    '<li>其他教材和練習都不需要密碼。</li></ul>';
+    '<li>其他教材、練習和紙本學習單（詞語、字音字形、句型）都不需要密碼。</li></ul>';
   const pv = el("section", { class: "card crcard" });
   pv.innerHTML = '<h3>隱私重點</h3><ul class="gl">' +
     '<li>學生作答在平板上先加密才送出，只有該組老師登入後看得到；網站管理者只看得到帳號名稱、組別名稱和筆數。</li>' +
@@ -231,7 +259,7 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
   if (saved) crypto.subtle.importKey("raw", ub(saved), "AES-GCM", true, ["decrypt"]).then(openWithKey).catch(() => {});
 })();
 </script>
-""".replace("__SEALED__", json.dumps(sealed)).replace("__TEST__", "true" if TEST else "false").replace("/*__MSGJS__*/", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "msg_inject.js"), encoding="utf-8").read())
+""".replace("__SEALED__", json.dumps(sealed)).replace("__TEST__", "true" if TEST else "false").replace("__SHEETS__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sheets.json"), encoding="utf-8").read()).replace("/*__MSGJS__*/", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "msg_inject.js"), encoding="utf-8").read())
 
 
 TABS_OLD_O = '[["accts", "老師帳號"], ["legacy", "未加密的舊紀錄"], ["b5", "紙本學習單"]]'
@@ -244,7 +272,7 @@ REG_PATCH = [
     ("<tr><td>投影上課、所有課程內容與教學工具（畫筆、遮住選項、抽籤、計時）</td><td>✓</td><td>✓</td></tr>",
      "<tr><td>投影上課、教學工具（畫筆、遮住選項、抽籤、計時）、其他課程內容</td><td>✓</td><td>✓</td></tr>\n<tr><td>課文全文、彩色生字圖</td><td>需課文密碼</td><td>需課文密碼</td></tr>"),
     ("<tr><td>下載生字講義（本頁下方）</td><td>✓</td><td>✓</td></tr>",
-     "<tr><td>下載生字講義（本頁下方）</td><td>需課文密碼</td><td>需課文密碼</td></tr>"),
+     "<tr><td>下載生字講義（本頁下方「紙本學習單」）</td><td>需課文密碼</td><td>需課文密碼</td></tr>\n<tr><td>下載其他紙本學習單（詞語、字音字形、句型）</td><td>✓</td><td>✓</td></tr>"),
     ("註冊免費，只要自訂帳號和密碼。學生的作答會加密，只有你看得到，詳見下方「隱私與安全說明」。",
      "註冊免費，只用來收學生作答紀錄，不能代替課文密碼。課文密碼只提供給網站管理者認識的老師，提示：管理者 IG 頭像的英文。學生的作答會加密，只有你看得到。"),
     ("只用來上課的話，不註冊也能使用全部教學功能。",
