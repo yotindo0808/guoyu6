@@ -88,11 +88,16 @@ html:not(.proj) #lockbtn,html.tmode #lockbtn{display:none}
 #lockdlg .lkbub{position:relative;background:#fff8e1;border:2.5px solid #f0a33a;border-radius:14px;padding:12px 15px;margin:.2em 0 1em;font-size:.95em;line-height:1.75;color:#4a3a1a}
 #lockdlg .lkbub:after{content:"";position:absolute;left:28px;bottom:-11px;width:18px;height:18px;background:#fff8e1;border-right:2.5px solid #f0a33a;border-bottom:2.5px solid #f0a33a;transform:rotate(45deg)}
 #lockdlg .lkbub b{color:#a35a00}
-#lockdlg .lkhint{font-size:.88em;color:#666}
+#lockdlg .lkhint{font-size:.95em;color:#1d4a3a;font-weight:bold;margin:.2em 0 .5em}
+#lockdlg .lknote{color:#b3261e;font-weight:bold;margin:.2em 0 .6em}
 .crline{font-family:var(--ui);font-size:12.5px;line-height:1.7;opacity:.75;text-align:center;margin:1.2em auto 0;max-width:46em}
 .crcard ol{padding-left:1.4em;line-height:1.85;margin:.4em 0 0}
 .crcard li{margin:.25em 0}
 .crcard{margin-top:16px}
+.crcard h3{margin:0 0 .4em}
+.gl{margin:0;padding-left:1.3em;line-height:1.85}
+.gl li{margin:.15em 0}
+.gmore summary{cursor:pointer;font-weight:bold}
 .crcard a{color:var(--accent);word-break:break-all}
 .hmsg{text-align:center;margin:1em 0 0}
 .linkbtn{font:inherit;color:inherit;background:none;border:none;border-bottom:2px solid currentColor;padding:0 .1em;margin:0 .15em;cursor:pointer;font-weight:bold}
@@ -146,8 +151,10 @@ function relock() {
   paintLockBtn(); if (page() === "lesson") render();
 }
 function paintLockBtn() { const b = document.getElementById("lockbtn"); if (b) { b.textContent = UNLOCKED ? "🔓 課文已解鎖" : "🔒 課文已上鎖"; b.classList.toggle("on", UNLOCKED); b.title = UNLOCKED ? "按一下重新上鎖" : "按一下輸入密碼解鎖"; } }
-function askPw() {
-  const d = document.getElementById("lockdlg"); d.classList.add("show");
+let AFTER_UNLOCK = null;
+function askPw(note, then) {
+  const d = document.getElementById("lockdlg"); d.classList.add("show"); AFTER_UNLOCK = then || null;
+  const n = d.querySelector(".lknote"); n.textContent = typeof note === "string" ? note : ""; n.hidden = !n.textContent;
   const inp = d.querySelector("input"); inp.value = ""; d.querySelector(".err").textContent = ""; setTimeout(() => inp.focus(), 50);
 }
 async function tryPw() {
@@ -158,6 +165,7 @@ async function tryPw() {
     const key = await deriveKey(inp.value); await openWithKey(key);
     try { const raw = await crypto.subtle.exportKey("raw", key); sessionStorage.setItem("kwkey", btoa(String.fromCharCode(...new Uint8Array(raw)))); } catch (e) {}
     d.classList.remove("show");
+    if (AFTER_UNLOCK) { const f = AFTER_UNLOCK; AFTER_UNLOCK = null; f(); }
   } catch (e) { err.textContent = "密碼不正確，請再試一次。"; }
   go.disabled = false;
 }
@@ -173,10 +181,29 @@ function copyrightCard() {
     '<li>彩色生字圖取自「雄::gsyan」網站（顏國雄）的 HTML5 FUN 筆順練習，著作權屬原作者所有。網址：<a href="https://gsyan888.blogspot.com/p/stroke.html" target="_blank" rel="noopener">gsyan888.blogspot.com/p/stroke.html</a></li>' +
     '<li>詞語解釋、字音、部首參考教育部《國語辭典簡編本》《國語小字典》等辭典資料。</li>' +
     '<li>情境圖、簡單說及部分例句由 LDG 製作。</li>' +
-    '<li>以上內容僅在學校課堂教學必要範圍內使用。課文全文與彩色生字圖已加密，只開放授課學校的老師解鎖。權利人如認為本站有不當使用，請透過<button type="button" class="linkbtn openmsg">✉️ 站內信</button>與網站管理者聯絡，將立即處理。</li></ol>';
+    '<li>以上內容僅在學校課堂教學必要範圍內使用。課文全文與彩色生字圖已加密，只開放給網站管理者認識的老師解鎖。權利人如認為本站有不當使用，請透過<button type="button" class="linkbtn openmsg">✉️ 站內信</button>與網站管理者聯絡，將立即處理。</li></ol>';
   return c;
 }
-{ const _th = tabHelp; tabHelp = function (body) { _th(body); body.append(copyrightCard()); const mc = card("聯絡網站管理者", "", "對網站有問題、建議，或有特殊需求，可以用站內信留言。留言只有網站管理者看得到。"); mc.append(tools(el("button", { type: "button", class: "btn solid openmsg" }, "✉️ 寫站內信"))); mc.classList.add("crcard"); body.append(mc); }; }
+{ const _th = tabHelp; tabHelp = function (body) {
+  const q = el("section", { class: "card crcard" });
+  q.innerHTML = '<h3>使用說明</h3><ul class="gl">' +
+    '<li><b>只想上課</b>：首頁按「投影上課」，不用註冊。下方有全螢幕、畫筆、遮住選項、抽籤、計時；題目卡按「公布答案」。</li>' +
+    '<li><b>要收學生作答</b>：到「教師管理」註冊 → 建組別 → 把「學生連結」或 QR code 給學生。</li>' +
+    '<li><b>控制練習範圍</b>：後台「今日任務」勾選小節和題數；投影時也可以按「開放給學生」。</li>' +
+    '<li><b>看結果</b>：後台「作答紀錄」。標示「待老師確認」的，請看明細判斷。</li>' +
+    '<li><b>學生平板</b>會一直停在學生練習；老師要用時，按左下角「老師」輸入帳號密碼。</li></ul>';
+  const k = el("section", { class: "card crcard" });
+  k.innerHTML = '<h3>課文密碼與註冊</h3><ul class="gl">' +
+    '<li>課文全文、彩色生字圖和生字講義下載需要<b>課文密碼</b>，只提供給網站管理者認識的老師。密碼提示：管理者 IG 頭像的英文。</li>' +
+    '<li>註冊帳號只用來收學生作答紀錄，<b>不能代替課文密碼</b>。</li>' +
+    '<li>其他教材和練習都不需要密碼。</li></ul>';
+  const pv = el("section", { class: "card crcard" });
+  pv.innerHTML = '<h3>隱私重點</h3><ul class="gl">' +
+    '<li>學生作答在平板上先加密才送出，只有該組老師登入後看得到；網站管理者只看得到帳號名稱、組別名稱和筆數。</li>' +
+    '<li>註冊時會拿到<b>救援碼</b>，請存好。密碼和救援碼都弄丟，紀錄就找不回來。</li>' +
+    '<li>帳號、組別名稱不要用學生全名或學校全名。口說、手寫作答會用到 Google／Apple 的辨識服務。</li></ul>';
+  const more = el("details", { class: "card crcard gmore" }, '<summary>看完整說明</summary>'); const tmp = el("div"); _th(tmp); tmp.querySelectorAll("details").forEach(x => x.open = true); more.append(...tmp.childNodes);
+  body.append(q, k, pv, copyrightCard()); const mc = card("聯絡網站管理者", "", "對網站有問題、建議，或有特殊需求，可以用站內信留言。留言只有網站管理者看得到。"); mc.append(tools(el("button", { type: "button", class: "btn solid openmsg" }, "✉️ 寫站內信"))); mc.classList.add("crcard"); body.append(mc, more); }; }
 { const _rh = renderHome; renderHome = function () { _rh(); const w = document.querySelector("#main .homewrap"); if (w) { w.append(el("p", { class: "hmsg" }, '<button type="button" class="btn openmsg">✉️ 聯絡網站管理者</button>')); w.append(el("p", { class: "crline" }, CR_LINE)); } }; }
 if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
 
@@ -189,8 +216,9 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
   if (__TEST__) document.querySelector("#bar .ver").insertAdjacentHTML("afterend", '<span id="testtag" title="測試版：課文加密，請勿給學生使用">測試版</span>');
   document.body.insertAdjacentHTML("beforeend", "" +
     '<div id="lockdlg" role="dialog" aria-modal="true" aria-labelledby="lockt"><div class="bx"><h3 id="lockt">🔑 課文解鎖</h3>' +
-    '<div class="lkbub"><b>為什麼需要密碼？</b><br>課文全文和彩色生字圖受著作權保護，只能在授課學校的課堂中使用，所以只開放給網站管理者與同校老師解鎖。<br><b>沒有密碼也能照常上課：</b>課文請學生翻開課本閱讀，生字會改用一般字體顯示，其他功能都不受影響。<br>如有特殊需求，請透過<button type="button" class="linkbtn openmsg">✉️ 站內信</button>與網站管理者聯絡。</div>' +
-    '<p class="lkhint">有密碼的老師請在下方輸入。密碼不會傳到網路上，只在這台電腦解開。</p>' +
+    '<p class="lknote" hidden></p>' +
+    '<div class="lkbub"><b>為什麼需要密碼？</b><br>課文全文和彩色生字圖受著作權保護，只開放給網站管理者認識的老師使用。有沒有註冊帳號，都需要這組密碼。<br><b>沒有密碼也能照常上課：</b>課文請學生翻開課本，生字改用一般字體顯示，其他練習都不受影響。<br>想要密碼，請用<button type="button" class="linkbtn openmsg">✉️ 站內信</button>聯絡管理者。</div>' +
+    '<p class="lkhint">🔑 密碼提示：管理者 IG 頭像的英文</p>' +
     '<input type="password" autocomplete="off" aria-label="密碼"><div class="err"></div>' +
     '<div class="acts"><button type="button" class="btn cancel">取消</button><button type="button" class="btn solid go">解鎖</button></div></div></div>');
   const d = document.getElementById("lockdlg");
@@ -198,6 +226,7 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
   d.querySelector(".go").onclick = tryPw;
   d.querySelector("input").addEventListener("keydown", e => { if (e.key === "Enter") tryPw(); if (e.key === "Escape") d.classList.remove("show"); });
   document.addEventListener("click", e => { if (e.target.closest(".unlockbtn")) { e.preventDefault(); e.stopPropagation(); askPw(); } }, true);
+  { const _op = openPrint; openPrint = function () { if (UNLOCKED) return _op(); const keep = L; askPw("下載生字講義需要課文密碼。", () => { L = keep; _op(); }); }; }
   let saved = null; try { saved = sessionStorage.getItem("kwkey"); } catch (e) {}
   if (saved) crypto.subtle.importKey("raw", ub(saved), "AES-GCM", true, ["decrypt"]).then(openWithKey).catch(() => {});
 })();
