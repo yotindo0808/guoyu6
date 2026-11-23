@@ -229,7 +229,7 @@ function copyrightCard() {
   pv.innerHTML = '<h3>隱私重點</h3><ul class="gl">' +
     '<li>學生作答在平板上先加密才送出，只有該組老師登入後看得到；網站管理者只看得到帳號名稱、組別名稱和筆數。</li>' +
     '<li>註冊時會拿到<b>救援碼</b>，請存好。密碼和救援碼都弄丟，紀錄就找不回來。</li>' +
-    '<li>帳號、組別名稱不要用學生全名或學校全名。口說、手寫作答會用到 Google／Apple 的辨識服務。</li></ul>';
+    '<li>帳號、組別名稱不要用學生全名或學校全名。口說、手寫作答會用到 Google／Apple 的辨識服務；語音報讀使用 Google 雲端語音（只傳送要唸的文字）。</li></ul>';
   const more = el("details", { class: "card crcard gmore" }, '<summary>看完整說明</summary>'); const tmp = el("div"); _th(tmp); tmp.querySelectorAll("details").forEach(x => x.open = true); more.append(...tmp.childNodes);
   body.append(q, k, pv, copyrightCard()); const mc = card("聯絡網站管理者", "", "對網站有問題、建議，或有特殊需求，可以用站內信留言。留言只有網站管理者看得到。"); mc.append(tools(el("button", { type: "button", class: "btn solid openmsg" }, "✉️ 寫站內信"))); mc.classList.add("crcard"); body.append(mc, more); }; }
 { const _rh = renderHome; renderHome = function () { _rh(); const w = document.querySelector("#main .homewrap"); if (w) { w.append(el("p", { class: "hmsg" }, '<button type="button" class="btn openmsg">✉️ 聯絡網站管理者</button>')); w.append(el("p", { class: "crline" }, CR_LINE)); } }; }
@@ -260,6 +260,7 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
 })();
 </script>
 """.replace("__SEALED__", json.dumps(sealed)).replace("__TEST__", "true" if TEST else "false").replace("__SHEETS__", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "sheets.json"), encoding="utf-8").read()).replace("/*__MSGJS__*/", open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "msg_inject.js"), encoding="utf-8").read())
+lock_js += "<script id=\"ttsjs\">\n" + open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "tts_inject.js"), encoding="utf-8").read() + "\n</script>\n"
 
 
 TABS_OLD_O = '[["accts", "老師帳號"], ["legacy", "未加密的舊紀錄"], ["b5", "紙本學習單"]]'
@@ -290,6 +291,8 @@ for a, b in [(TABS_OLD_O, TABS_NEW_O), (TABS_OLD_T, TABS_NEW_T), (MAP_OLD, MAP_N
 s = s.replace("</head>", lock_css + "</head>", 1)
 idx = s.rindex("</body>")
 s = s[:idx] + lock_js + s[idx:]
+if 'name="referrer"' not in s:
+    s = s.replace('<meta name="robots"', '<meta name="referrer" content="no-referrer">\n<meta name="robots"', 1)
 if TEST: s = s.replace("<title>", "<title>【測試版】", 1)
 open(out, "w", encoding="utf-8").write(s)
 print("ok", len(s), "cipher bytes", len(ct))
