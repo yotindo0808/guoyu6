@@ -295,6 +295,7 @@ _KB_OLD = 'window.addEventListener("resize", () => { clearTimeout(rzT); rzT = se
 _KB_NEW = 'let rzW = innerWidth; window.addEventListener("resize", () => { clearTimeout(rzT); /* 平板浮動鍵盤跳出或收起只改變高度：卡片有作答框時不重畫，避免鍵盤縮回、打好的字被清掉 */ const wChg = Math.abs(innerWidth - rzW) > 40; rzW = innerWidth; const ae = document.activeElement; const typing = ae && (ae.matches("input, textarea, [contenteditable]") && !ae.matches("[type=button],[type=radio],[type=checkbox]")); if (!wChg && (typing || host.querySelector("input:not([type=button]):not([type=radio]):not([type=checkbox]), textarea, [contenteditable=true]"))) return; rzT = setTimeout(refit, 250); });'
 if _KB_OLD in s:
     s = s.replace(_KB_OLD, _KB_NEW, 1)
+idx = s.rindex("</body>")  # 上面的替換會改變長度，要重新找位置
 s = s[:idx] + lock_js + s[idx:]
 if 'name="referrer"' not in s:
     s = s.replace('<meta name="robots"', '<meta name="referrer" content="no-referrer">\n<meta name="robots"', 1)
