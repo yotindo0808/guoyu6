@@ -8,4 +8,6 @@
 
     python3 build_lock.py 未加密的index.html 芫荽體.ttf index.html 老師密碼 prod
 
-msg_inject.js 必須和 build_lock.py 放在同一個資料夾。
+msg_inject.js、tts_inject.js 必須和 build_lock.py 放在同一個資料夾。
+
+tts_inject.js：語音報讀改用 Google 雲端國語語音（預設 1.4 倍速，改 RATE 即可），連不上時退回平板內建語音；網址加 ?tts=local 強制用平板語音。build_lock.py 會自動加進去，並加上 no-referrer。
