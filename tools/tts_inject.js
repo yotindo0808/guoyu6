@@ -13,7 +13,11 @@
   const url = t => "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=zh-TW&ttsspeed=1&q=" + encodeURIComponent(t);
   /* 圖示（💬📖✏️⭐🔒✕↩ 等）不唸：去掉表情符號與圖形符號 */
   const ICON = /[\p{Extended_Pictographic}\p{So}\u200D\u20E3\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}]/gu;
-  const fix = t => TTSFIX.reduce((s, [a, b]) => s.split(a).join(b), String(t).normalize("NFKC").replace(/[\u{E0100}-\u{E01EF}\uFE00-\uFE0F]/gu, "").replace(ICON, " ").replace(/[ \t]{2,}/g, " ").trim());
+  /* 雲端語音唸錯的字詞，用同音字代唸（之後遇到唸錯的詞加在這裡） */
+  const CLOUDFIX = [["比比皆是", "必必皆是"], ["嗯", "恩"]];
+  /* 題目的空格線（＿＿＿）不唸「底線」，改成短暫停頓 */
+  const BLANK = /[_\uFF3F\u2017\u2581\uFE4D-\uFE4F]+/g;
+  const fix = t => CLOUDFIX.concat(TTSFIX).reduce((s, [a, b]) => s.split(a).join(b), String(t).replace(BLANK, "，").normalize("NFKC").replace(/[\u{E0100}-\u{E01EF}\uFE00-\uFE0F]/gu, "").replace(ICON, " ").replace(/,(\s*,)+/g, ",").replace(/,\s*([。!?;])/g, "$1").replace(/[ \t]{2,}/g, " ").trim());
   /* 切成短段：先依句號等切，太長再依逗號切，最後硬切 */
   function chunks(t) {
     t = t.replace(/\s+/g, " ").trim(); if (!t) return [];
