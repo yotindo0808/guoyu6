@@ -4269,7 +4269,9 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
   let cur = null, token = 0;
 
   const url = t => "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=zh-TW&ttsspeed=1&q=" + encodeURIComponent(t);
-  const fix = t => TTSFIX.reduce((s, [a, b]) => s.split(a).join(b), String(t).normalize("NFKC").replace(/[\u{E0100}-\u{E01EF}\uFE00-\uFE0F]/gu, ""));
+  /* 圖示（💬📖✏️⭐🔒✕↩ 等）不唸：去掉表情符號與圖形符號 */
+  const ICON = /[\p{Extended_Pictographic}\p{So}\u200D\u20E3\u{1F3FB}-\u{1F3FF}\u{1F1E6}-\u{1F1FF}]/gu;
+  const fix = t => TTSFIX.reduce((s, [a, b]) => s.split(a).join(b), String(t).normalize("NFKC").replace(/[\u{E0100}-\u{E01EF}\uFE00-\uFE0F]/gu, "").replace(ICON, " ").replace(/[ \t]{2,}/g, " ").trim());
   /* 切成短段：先依句號等切，太長再依逗號切，最後硬切 */
   function chunks(t) {
     t = t.replace(/\s+/g, " ").trim(); if (!t) return [];
@@ -4314,6 +4316,7 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
     if (!text) return;
     halt();
     text = fix(text);
+    if (!/[\p{L}\p{N}]/u.test(text)) { opt.onend && opt.onend(); return; }   // 只有圖示就不唸
     if (!cloudOK && failAt && Date.now() - failAt > 120000 && !FORCE_LOCAL) cloudOK = true; // 兩分鐘後再試雲端
     if (!cloudOK) { localSpeak(text, opt); return; }
     const parts = chunks(text), my = token;
