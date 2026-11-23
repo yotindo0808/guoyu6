@@ -4261,7 +4261,7 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
    網址加 ?tts=local 可強制使用平板內建語音（比對用）。 */
 (function cloudTTS() {
   const FORCE_LOCAL = /[?&]tts=local\b/.test(location.search);
-  const RATE = 0.9;            // 播放速度（1 = 原速）
+  const RATE = 1.4;            // 播放速度（1 = 原速；雲端與平板語音都用這個）
   const MAXLEN = 90;           // 每段最多字數（雲端服務單次上限約 200 字）
   const TIMEOUT = 7000;        // 幾毫秒沒開始播放就改用內建語音
   let cloudOK = !FORCE_LOCAL, failAt = 0;
@@ -4299,7 +4299,7 @@ if (page() === "home") renderHome(); if (page() === "guide") renderGuide();
   function localSpeak(text, opt) {
     if (!HAS_TTS) { opt.onend && opt.onend(); return; }
     speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text); u.lang = "zh-TW"; if (VOICE) u.voice = VOICE; u.rate = opt.rate || 0.85;
+    const u = new SpeechSynthesisUtterance(text); u.lang = "zh-TW"; if (VOICE) u.voice = VOICE; u.rate = opt.rate || RATE;
     u.onend = () => opt.onend && opt.onend(); u.onerror = () => opt.onend && opt.onend();
     speechSynthesis.speak(u);
   }
