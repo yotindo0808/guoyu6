@@ -292,6 +292,10 @@ for a, b in [(TABS_OLD_O, TABS_NEW_O), (TABS_OLD_T, TABS_NEW_T), (MAP_OLD, MAP_N
 
 s = s.replace("</head>", lock_css + "</head>", 1)
 idx = s.rindex("</body>")
+# 學生練習「生字練習」分步驟版面（10 吋平板），見 stu_chars_patch.py
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import stu_chars_patch
+s = stu_chars_patch.apply(s)
 # 平板浮動鍵盤：只改變高度時不重畫有作答框的卡片
 _KB_OLD = 'window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(refit, 250); });'
 _KB_NEW = 'let rzW = innerWidth; window.addEventListener("resize", () => { clearTimeout(rzT); /* 平板浮動鍵盤跳出或收起只改變高度：卡片有作答框時不重畫，避免鍵盤縮回、打好的字被清掉 */ const wChg = Math.abs(innerWidth - rzW) > 40; rzW = innerWidth; const ae = document.activeElement; const typing = ae && (ae.matches("input, textarea, [contenteditable]") && !ae.matches("[type=button],[type=radio],[type=checkbox]")); if (!wChg && (typing || host.querySelector("input:not([type=button]):not([type=radio]):not([type=checkbox]), textarea, [contenteditable=true]"))) return; rzT = setTimeout(refit, 250); });'
