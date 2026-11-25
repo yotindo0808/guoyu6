@@ -47,8 +47,10 @@ for lid, L in obj.items():
                 seen.add(w); words.append(w)
         hidden = "".join(f'<button type="button" class="w" data-w="{html.escape(w)}">{html.escape(w)}</button>' for w in words)
         no = NUMS[n] if n < len(NUMS) else str(n + 1)
+        tl = (L.get("tlabel") or [])
+        where = f"「{tl[n]}」" if n < len(tl) else f"第{no}段課文"
         ph.append(
-            f'<span class="lockp">🔒 第{no}段課文請翻開課本閱讀。'
+            f'<span class="lockp">🔒 {where}請翻開課本閱讀。'
             f'<button type="button" class="btn unlockbtn">🔑 老師解鎖</button></span>'
             f'<span class="lockw" hidden>{hidden}</span>')
     L["text"] = ph
