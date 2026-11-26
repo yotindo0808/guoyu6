@@ -191,7 +191,7 @@ tabB5 = function (body) {
       return row(n, paper, link(x.pdf, "PDF", `${no}_${n}.pdf`),
         x.tpdf ? link(x.tpdf, "PDF", `${no}_${n}_教師版.pdf`) : (x.tWip ? wip : "—"),
         [link(x.doc, x.doc && x.doc.endsWith(".pptx") ? "PowerPoint" : "Word", `${no}_${n}${x.doc ? x.doc.slice(x.doc.lastIndexOf(".")) : ""}`),
-         link(x.tdoc, "教師版 Word", `${no}_${n}_教師版${x.tdoc ? x.tdoc.slice(x.tdoc.lastIndexOf(".")) : ""}`)].filter(Boolean).join(" ") || "—"); };
+         link(x.tdoc, x.tdoc && x.tdoc.endsWith(".pptx") ? "教師版 PowerPoint" : "教師版 Word", `${no}_${n}_教師版${x.tdoc ? x.tdoc.slice(x.tdoc.lastIndexOf(".")) : ""}`)].filter(Boolean).join(" ") || "—"); };
     wrap.innerHTML = `<table class="ttable"><thead><tr><th>學習單</th><th>紙張</th><th>學生版</th><th>教師版</th><th>可編輯檔</th></tr></thead><tbody>
       <tr><td>🔒 生字講義</td><td>B5</td><td><button type="button" class="btn solid shb" id="b5go">下載</button></td><td>—</td><td>—</td></tr>
       ${one("words", "詞語選詞填寫", "A4")}${one("zx", "字音字形講義", "B5")}${one("jx", "句型練習單（直書）", "B5")}</tbody></table>`;
