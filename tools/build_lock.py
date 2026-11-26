@@ -194,7 +194,7 @@ tabB5 = function (body) {
          link(x.tdoc, x.tdoc && x.tdoc.endsWith(".pptx") ? "教師版 PowerPoint" : "教師版 Word", `${no}_${n}_教師版${x.tdoc ? x.tdoc.slice(x.tdoc.lastIndexOf(".")) : ""}`)].filter(Boolean).join(" ") || "—"); };
     wrap.innerHTML = `<table class="ttable"><thead><tr><th>學習單</th><th>紙張</th><th>學生版</th><th>教師版</th><th>可編輯檔</th></tr></thead><tbody>
       <tr><td>🔒 生字講義</td><td>B5</td><td><button type="button" class="btn solid shb" id="b5go">下載</button></td><td>—</td><td>—</td></tr>
-      ${one("words", "詞語選詞填寫", "A4")}${one("zx", "字音字形講義", "B5")}${one("jx", "句型練習單（直書）", "B5")}</tbody></table>`;
+      ${one("words", "詞語選詞填寫", "A4")}${one("zx", S.zxp ? "字音字形學習單（上課用）" : "字音字形講義", "B5")}${S.zxp ? one("zxp", "字音字形綜合練習", "B5") : ""}${one("jx", "句型練習單（直書）", "B5")}</tbody></table>`;
     wrap.querySelector("#b5go").onclick = () => { L = LESSONS[sel.value]; openPrint(); };
   };
   sel.onchange = draw; draw();
