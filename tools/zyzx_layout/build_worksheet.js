@@ -305,7 +305,7 @@ function polyBlock(p, key) {
             w: P_ZW, shade: 'FFFFFF', borders: BOX(8, '7F7F7F'), margins: { top: 0, bottom: 0, left: 0, right: 0 },
           }));
         } else {
-          kids.push(cell(emptyP(), {  // 高年級不用注音體：非目標字旁不放注音
+          kids.push(cell(DATA.zhuyin ? zyImgAny(it.c, null, false, emMM) : emptyP(), {  // zhuyin: true（低、中年級）才在非目標字旁放注音
             w: P_ZW, shade, borders: { ...vb, right: SOLID(4, EDGE), left: NONE }, margins: { top: 0, bottom: 0, left: 0, right: 0 },
           }));
         }

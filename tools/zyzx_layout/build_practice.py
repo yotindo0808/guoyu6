@@ -11,6 +11,9 @@ D = json.load(open(sys.argv[1], encoding='utf-8'))
 OUT = sys.argv[2]
 P = D['practice']
 FONT = '芫荽'
+ZHUYIN = False   # 注音字型在直書 Word 會轉向跑版，綜合練習一律不加注音
+if D.get('zhuyin'): print('注意：綜合練習（直書）目前不支援 zhuyin，題目文字不會加注音')
+BPMF = 'ㄅ注音芫荽'
 RED = RGBColor(0xC0, 0x00, 0x00)
 GRAY = RGBColor(0x40, 0x40, 0x40)
 ZY = {c['ch']: c['zy'] for row in D['shapeRows'] if row != 'PAGEBREAK' for g in row for c in g['chars']}
@@ -39,31 +42,39 @@ def border(p, color='8FA77F', sz=8):
         e = OxmlElement('w:' + side); e.set(qn('w:val'), 'single'); e.set(qn('w:sz'), str(sz)); e.set(qn('w:space'), '4'); e.set(qn('w:color'), color); b.append(e)
     ppr.append(b)
 
-def add(p, text, size=16, bold=False, color=None):
-    r = p.add_run(text); setfont(r, size, bold, color); return r
+def ivs(t): return re.sub(r'\{(\d+)\}', lambda m: '' if m.group(1) == '1' else chr(0xE01E0 + int(m.group(1)) - 1), t)
+
+def add(p, text, size=16, bold=False, color=None, plain=False):
+    r = p.add_run(ivs(text)); setfont(r, size, bold, color)
+    if ZHUYIN and not plain and color is None and re.search(r'[\u4e00-\u9fff]', text):
+        rf = r._r.get_or_add_rPr().find(qn('w:rFonts'))
+        for k in ('w:ascii', 'w:hAnsi', 'w:eastAsia', 'w:cs'): rf.set(qn(k), BPMF)
+    return r
 
 BLANK_Z = '\u2060　\u2060　\u2060'   # 注音空格
 BLANK_C = '\u2060　\u2060　\u2060'     # 國字空格
 
-WIDTH = 17   # 直書一欄大約放得下的字數
+WIDTH = 12 if ZHUYIN else 17   # 直書一欄大約放得下的字數（注音字型較寬）
 
 def toks(text):
     """切成不可拆開的單位：[字] 粗體目標字；〔答案〕國字空格；〈注音〉注音空格"""
     out = []
-    for tok in re.split(r'(\[[^\]]+\]|〔[^〕]*〕|〈[^〉]*〉)', text):
+    for tok in re.split(r'(\[[^\]]+\]|〔[^〕]*〕|〈[^〉]*〉|«[^»]+»)', text):
         if not tok: continue
-        if tok[0] in '[〔〈': out.append(tok)
-        else: out.extend(list(tok))
+        if tok[0] in '[〔〈«': out.append(tok)
+        else:
+            for piece in re.findall(r'.\{\d+\}|.', tok): out.append(piece)
     return out
 
 def tlen(t):
-    if t[0] == '[': return len(t) - 2
+    if t[0] in '[«': return len(t) - 2
     if t[0] == '〈': return 5
     if t[0] == '〔': return 4
     return 1
 
 def emit(p, t, key, size):
-    if t[0] == '[': add(p, t[1:-1], size, True)
+    if t[0] == '[': add(p, t[1:-1], size, True, plain=True)   # 要判斷的字不給注音
+    elif t[0] == '«': add(p, t[1:-1], size, plain=True)
     elif t[0] in '〔〈':
         z = t[0] == '〈'
         add(p, '（', size)
@@ -95,13 +106,16 @@ def rich(p, text, key, size=16, first=0, indent='　'):
         for t in ln: emit(p, t, key, size)
 
 def circle(p, text, key, size=16):
-    # （寓／[遇]）言：教師版把正確的字標紅、加底線
-    for tok in re.split(r'(\[[^\]]+\])', text):
+    # （寓／[遇]）言：教師版把正確的字標紅、加底線；括號裡的選項不給注音
+    inside = False
+    for tok in re.split(r'(\[[^\]]+\]|（|）)', text):
         if not tok: continue
+        if tok == '（': inside = True
         if tok.startswith('['):
-            r = add(p, tok[1:-1], size, key, RED if key else None)
+            r = add(p, tok[1:-1], size, key, RED if key else None, plain=True)
             if key: r.font.underline = True
-        else: add(p, tok, size)
+        else: add(p, tok, size, plain=inside)
+        if tok == '）': inside = False
 
 def title(doc, text, note):
     p = para(doc, before=6, after=4, keep=True)
@@ -148,7 +162,7 @@ def build(key):
         p = para(doc, before=8 if i else 2, line=26)
         border(p)
         add(p, NUMS[i] + '　', 16, True)
-        rich(p, '　'.join(c + '：〈' + ZY[c] + '〉' for c in b['chars']), key, first=2, indent='　　')
+        rich(p, '　'.join('«' + c + '»：〈' + ZY[c] + '〉' for c in b['chars']), key, first=2, indent='　　')
         for k, s in enumerate(b['sents']):
             p = para(doc, line=26)
             lead = '　' + (SUB[k] if len(b['sents']) > 1 else '　')
