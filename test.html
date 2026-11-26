@@ -1046,12 +1046,13 @@ html:not(.proj) #lockbtn,html.tmode #lockbtn{display:none}
 .cpstep.ok::after { content: " √"; }
 .cp2.tight .cpstep { font-size: 15px; padding: .15em .7em; }
 .cp2.tight .cphead > .hint { display: none; }
+.cp2.tight .ztones .zk { height: calc(var(--kh, 56px) * 1.6); }
 .cpp1 { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: stretch; }
 .cpp1 .ptask { justify-content: flex-start; }
 .cpp1 .ptask .btn { font-size: 18px; padding: .35em .9em; }
 .cp2 .zkb { width: 100%; gap: 6px; }
 .cp2 .zrow { display: flex; flex-wrap: nowrap; gap: 6px; justify-content: center; width: 100%; }
-.cp2 .zk { flex: 0 0 calc((100% - 42px) / 8); min-width: 0; border-width: 2px; border-radius: 10px; height: var(--kh, 56px); font-size: calc(var(--kh, 56px) * .58); }
+.cp2 .zk { flex: 0 0 calc((100% - 42px) / 8); min-width: 0; border-width: 2px; border-radius: 10px; height: var(--kh, 56px); font-size: max(16px, calc(var(--kh, 56px) * .6)); }
 .cp2 .ztones .zk { flex: 1 1 0; height: calc(var(--kh, 56px) * 1.25); }
 .cp2 .zkt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1; overflow: hidden; padding: 0; }
 .cp2 .zkt .tm { display: block; font-size: calc(var(--kh, 56px) * 1.05); line-height: 1; height: .5em; overflow: visible; transform: translateY(.08em); }
@@ -1064,13 +1065,15 @@ html:not(.proj) #lockbtn,html.tmode #lockbtn{display:none}
 .cp2 .cphead { min-height: 0; }
 .cp2 .cphead .bigsay { transform: none; }
 .cpp2 { display: flex; justify-content: center; }
-.cpp2 .ptask { min-width: min(720px, 90%); padding: 18px; }
+.cpp2 .ptask { width: 100%; max-width: 720px; box-sizing: border-box; padding: 18px; }
 .cpp2 .ropt { min-width: 6em; padding: 14px 18px; }
 .cpp2 .ropt .rg { font-size: 64px; }
 .cpp2 .ropt small { font-size: 17px; }
 .cp2 .cpp1[hidden], .cp2 .cpp2[hidden], .cp2 .ptask[hidden] { display: none; }
-.cpp1.one { grid-template-columns: 1fr; justify-items: center; }
-.cpp1.one .ptask { width: min(100%, 900px); }
+.cpp1.one { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.cpp1.one .ptask { width: 100%; max-width: 900px; min-width: 0; box-sizing: border-box; }
+.dhost:has(> .slide.cps.in), .slide.cps, .cp2, .cp2 .cpp1, .cp2 .cpp2, .cp2 .ptask, .cp2 .zkb, .cp2 .zrow { min-width: 0; }
+.cp2 .ztones .zk { flex: 1 1 0; width: 0; }
 /* 只在「生字練習」這一頁、畫面不夠高時收窄外框（其他頁面不變） */
 @media (max-height: 760px) {
   html:not(.proj) .deck:has(.slide.cps.in) .dhint { display: none; }

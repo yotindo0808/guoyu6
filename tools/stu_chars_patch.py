@@ -37,7 +37,7 @@ PATCHES = [
     const sz = Math.max(160, Math.min(440, Math.floor(Math.min(av - 92, innerWidth * (t ? .6 : .36)))));
     if (!wt || (wt._sz !== sz && !done(wt))) { const nw = writeTask(c, () => mark(), { size: sz }); nw._sz = sz; if (wt) wt.replaceWith(nw); else p1.prepend(nw); wt = nw; }
     groups[0][0] = wt;
-    const rows = t ? 7.4 : 6.5, extra = t ? 40 : 110;
+    const rows = t ? 7.8 : 6.5, extra = t ? 40 : 110;
     wrap.style.setProperty("--kh", Math.max(22, Math.min(70, Math.floor((av - extra) / rows - 6))) + "px");
     go(Math.min(cur, groups.length - 1));
   };
@@ -45,7 +45,7 @@ PATCHES = [
   const lastBottom = t => t.lastElementChild ? t.lastElementChild.getBoundingClientRect().bottom : t.getBoundingClientRect().bottom;
   const fine = st => {
     if (!wrap.offsetParent) return; const sb = limit();
-    if (!zt.hidden) { const kh = parseFloat(wrap.style.getPropertyValue("--kh")) || 40; const nk = Math.max(22, Math.min(76, Math.floor(kh + (sb - lastBottom(zt)) / 6.8))); if (nk !== kh) wrap.style.setProperty("--kh", nk + "px"); }
+    if (!zt.hidden) { const kh = parseFloat(wrap.style.getPropertyValue("--kh")) || 40; const nk = Math.max(22, Math.min(76, Math.floor(kh + (sb - lastBottom(zt)) / (tight ? 7.2 : 6.8)))); if (nk !== kh) wrap.style.setProperty("--kh", nk + "px"); }
     if (wt && !wt.hidden && !done(wt)) { const cap = Math.min(440, Math.floor(innerWidth * (tight ? .6 : .36))); const nsz = Math.max(160, Math.min(cap, wt._sz + Math.floor(sb - lastBottom(wt)))); if (Math.abs(nsz - wt._sz) >= 6) { const nw = writeTask(c, () => mark(), { size: nsz }); nw._sz = nsz; wt.replaceWith(nw); groups[0][0] = wt = nw; } }
   };
   p1.append(zt); wrap.append(head, p1, p2);
@@ -65,12 +65,13 @@ CSS = r'''
 .cpstep.ok::after { content: " √"; }
 .cp2.tight .cpstep { font-size: 15px; padding: .15em .7em; }
 .cp2.tight .cphead > .hint { display: none; }
+.cp2.tight .ztones .zk { height: calc(var(--kh, 56px) * 1.6); }
 .cpp1 { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: stretch; }
 .cpp1 .ptask { justify-content: flex-start; }
 .cpp1 .ptask .btn { font-size: 18px; padding: .35em .9em; }
 .cp2 .zkb { width: 100%; gap: 6px; }
 .cp2 .zrow { display: flex; flex-wrap: nowrap; gap: 6px; justify-content: center; width: 100%; }
-.cp2 .zk { flex: 0 0 calc((100% - 42px) / 8); min-width: 0; border-width: 2px; border-radius: 10px; height: var(--kh, 56px); font-size: calc(var(--kh, 56px) * .58); }
+.cp2 .zk { flex: 0 0 calc((100% - 42px) / 8); min-width: 0; border-width: 2px; border-radius: 10px; height: var(--kh, 56px); font-size: max(16px, calc(var(--kh, 56px) * .6)); }
 .cp2 .ztones .zk { flex: 1 1 0; height: calc(var(--kh, 56px) * 1.25); }
 .cp2 .zkt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1; overflow: hidden; padding: 0; }
 .cp2 .zkt .tm { display: block; font-size: calc(var(--kh, 56px) * 1.05); line-height: 1; height: .5em; overflow: visible; transform: translateY(.08em); }
@@ -83,13 +84,15 @@ CSS = r'''
 .cp2 .cphead { min-height: 0; }
 .cp2 .cphead .bigsay { transform: none; }
 .cpp2 { display: flex; justify-content: center; }
-.cpp2 .ptask { min-width: min(720px, 90%); padding: 18px; }
+.cpp2 .ptask { width: 100%; max-width: 720px; box-sizing: border-box; padding: 18px; }
 .cpp2 .ropt { min-width: 6em; padding: 14px 18px; }
 .cpp2 .ropt .rg { font-size: 64px; }
 .cpp2 .ropt small { font-size: 17px; }
 .cp2 .cpp1[hidden], .cp2 .cpp2[hidden], .cp2 .ptask[hidden] { display: none; }
-.cpp1.one { grid-template-columns: 1fr; justify-items: center; }
-.cpp1.one .ptask { width: min(100%, 900px); }
+.cpp1.one { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.cpp1.one .ptask { width: 100%; max-width: 900px; min-width: 0; box-sizing: border-box; }
+.dhost:has(> .slide.cps.in), .slide.cps, .cp2, .cp2 .cpp1, .cp2 .cpp2, .cp2 .ptask, .cp2 .zkb, .cp2 .zrow { min-width: 0; }
+.cp2 .ztones .zk { flex: 1 1 0; width: 0; }
 /* 只在「生字練習」這一頁、畫面不夠高時收窄外框（其他頁面不變） */
 @media (max-height: 760px) {
   html:not(.proj) .deck:has(.slide.cps.in) .dhint { display: none; }
@@ -105,7 +108,9 @@ CSS = r'''
 
 def apply(s):
     if 'id="cp2css"' in s:
-        return s
+        # 已套用過：只把樣式換成目前版本
+        i = s.index('\n<style id="cp2css">'); j = s.index("</style>", i) + len("</style>\n")
+        return s[:i] + CSS + s[j:]
     for old, new in PATCHES:
         if s.count(old) != 1:
             print("⚠️ 生字練習分步驟：找不到要修改的程式（原始檔可能已更動），這次沒有套用：\n" + old[:80], file=sys.stderr)
